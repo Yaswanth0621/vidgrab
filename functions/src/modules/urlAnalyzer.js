@@ -30,6 +30,11 @@ async function analyzeUrl(url) {
     const cleanUrl = url.split("?")[0].split("#")[0].toLowerCase();
     const ext = cleanUrl.split(".").pop();
 
+    // Check if YouTube
+    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      return { type: "youtube", url, isDirect: true };
+    }
+
     // Check if URL has a known media extension
     if (MEDIA_EXTENSIONS[ext]) {
       return {

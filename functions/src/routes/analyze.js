@@ -4,6 +4,7 @@ const { extractFromHtml } = require("../modules/htmlExtractor");
 const { extractWithPuppeteer } = require("../modules/puppeteerExtractor");
 const { parseHls } = require("../modules/hlsParser");
 const { parseDash } = require("../modules/dashParser");
+const { extractYoutubeInfo } = require("../modules/youtubeExtractor");
 
 const router = express.Router();
 
@@ -38,6 +39,11 @@ router.post("/", async (req, res, next) => {
       } else if (source.type === "dash") {
         const dashData = await parseDash(source.url, url);
         formats = dashData.qualities;
+      } else if (source.type === "youtube") {
+        const ytData = await extractYoutubeInfo(source.url);
+        title = ytData.title;
+        thumbnail = ytData.thumbnail;
+        formats = ytData.formats;
       } else {
         formats = [{ id: "direct_1", type: source.type, quality: "Auto", url: source.url }];
       }
