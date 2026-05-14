@@ -44,8 +44,8 @@ async function extractWithYtdlp(url) {
     const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
     const domain = new URL(url).hostname;
     
-    // Prioritize TV and Android clients which are more resistant to "Sign in" blocks
-    const ytClients = isYouTube ? ['tvhtml5', 'android', 'mweb', 'web', 'ios'] : [null];
+    // Prioritize clients that are more resistant to "Sign in" blocks
+    const ytClients = isYouTube ? ['tvhtml5', 'android', 'mweb_embedded', 'web_embedded', 'mweb', 'web', 'ios'] : [null];
     let lastError = null;
 
     for (const client of ytClients) {
@@ -70,7 +70,7 @@ async function extractWithYtdlp(url) {
           '--add-header', `sec-ch-ua-platform:"Windows"`,
           '--add-header', 'sec-fetch-dest:document',
           '--add-header', 'sec-fetch-mode:navigate',
-          '--add-header', 'sec-fetch-site:none',
+          '--add-header', 'sec-fetch-site:same-origin',
           '--add-header', 'sec-fetch-user:?1',
           '--add-header', 'upgrade-insecure-requests:1'
         ];
@@ -78,7 +78,8 @@ async function extractWithYtdlp(url) {
         if (useCookies) {
           args.push('--cookies', cookiesPath);
           args.push('--no-cache-dir');
-          if (isYouTube) args.push('--sleep-requests', '1'); // More conservative sleep
+          // Increase sleep to cool down the IP
+          if (isYouTube) args.push('--sleep-requests', '2'); 
         }
 
         if (isYouTube) {
