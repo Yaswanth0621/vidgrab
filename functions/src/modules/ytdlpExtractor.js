@@ -48,6 +48,8 @@ async function extractWithYtdlp(url) {
           noPlaylist: true,
           flatPlaylist: true,
           noCheckCertificate: true,
+          noCheckFormats: true,
+          format: 'best',
           quiet: true,
           userAgent: ua,
           addHeader: [
