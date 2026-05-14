@@ -44,13 +44,13 @@ async function extractWithYtdlp(url) {
     const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
     const domain = new URL(url).hostname;
     
-    // Prioritize clients that are more resistant to "Sign in" blocks
-    const ytClients = isYouTube ? ['tvhtml5', 'android', 'mweb_embedded', 'web_embedded', 'mweb', 'web', 'ios'] : [null];
+    // Prioritize Android and MWeb clients which are currently more stable
+    const ytClients = isYouTube ? ['android', 'mweb', 'tvhtml5', 'web_embedded', 'mweb_embedded', 'web', 'ios'] : [null];
     let lastError = null;
 
     for (const client of ytClients) {
       try {
-        const args = [
+        let args = [
           url,
           '--dump-json',
           '--no-warnings',
@@ -58,27 +58,38 @@ async function extractWithYtdlp(url) {
           '--flat-playlist',
           '--no-check-certificate',
           '--no-check-formats',
-          '--quiet',
-          '--impersonate', 'chrome',
-          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          '--add-header', `referer:https://${domain}/`,
-          '--add-header', `origin:https://${domain}`,
-          '--add-header', 'accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-          '--add-header', 'accept-language:en-US,en;q=0.9',
-          '--add-header', 'sec-ch-ua:"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-          '--add-header', 'sec-ch-ua-mobile:?0',
-          '--add-header', `sec-ch-ua-platform:"Windows"`,
-          '--add-header', 'sec-fetch-dest:document',
-          '--add-header', 'sec-fetch-mode:navigate',
-          '--add-header', 'sec-fetch-site:same-origin',
-          '--add-header', 'sec-fetch-user:?1',
-          '--add-header', 'upgrade-insecure-requests:1'
+          '--quiet'
         ];
+
+        // For non-YouTube sites, use the ultra-stealth profile
+        if (!isYouTube) {
+          args.push(
+            '--impersonate', 'chrome',
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            '--add-header', `referer:https://${domain}/`,
+            '--add-header', `origin:https://${domain}`,
+            '--add-header', 'accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            '--add-header', 'accept-language:en-US,en;q=0.9',
+            '--add-header', 'sec-ch-ua:"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            '--add-header', 'sec-ch-ua-mobile:?0',
+            '--add-header', `sec-ch-ua-platform:"Windows"`,
+            '--add-header', 'sec-fetch-dest:document',
+            '--add-header', 'sec-fetch-mode:navigate',
+            '--add-header', 'sec-fetch-site:same-origin',
+            '--add-header', 'sec-fetch-user:?1',
+            '--add-header', 'upgrade-insecure-requests:1'
+          );
+        } else {
+          // For YouTube, use a simpler mobile-like profile
+          args.push(
+            '--user-agent', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+            '--add-header', 'referer:https://www.google.com/search?q=youtube+shorts'
+          );
+        }
 
         if (useCookies) {
           args.push('--cookies', cookiesPath);
           args.push('--no-cache-dir');
-          // Increase sleep to cool down the IP
           if (isYouTube) args.push('--sleep-requests', '2'); 
         }
 
