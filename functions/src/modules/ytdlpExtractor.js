@@ -58,7 +58,6 @@ async function extractWithYtdlp(url) {
         // Use a "Super-Client" string to let yt-dlp pick the best one automatically
         if (client) {
           options.extractorArgs = `youtube:player_client=${client}`;
-          options.format = 'bestvideo+bestaudio/best';
           console.log(`[yt-dlp] Trying client(s): ${client}`);
         } else {
           // Standard first attempt with a robust combo
