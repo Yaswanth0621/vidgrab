@@ -28,40 +28,36 @@ async function extractWithYtdlp(url) {
     const useCookies = !!cookiesPath;
     if (useCookies) console.log(`[yt-dlp] Using cookies from: ${cookiesPath}`);
 
-    // List of clients to try for YouTube (some are harder for YouTube to block than others)
-    const ytClients = ['tvhtml5', 'android', 'android_embedded', 'ios', 'ios_embedded', 'mweb', 'web'];
+    // List of clients to try for YouTube
+    // We start with 'null' (standard web) because with cookies it's most reliable
+    const ytClients = [null, 'tvhtml5', 'android', 'mweb', 'web', 'ios'];
     let lastError = null;
 
     for (const client of ytClients) {
       try {
-        let ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-        
-        if (client.includes('android')) {
-          ua = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36';
-        } else if (client.includes('ios')) {
-          ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1';
-        }
-
         const options = {
           dumpJson: true,
           noWarnings: true,
           noPlaylist: true,
           flatPlaylist: true,
           noCheckCertificate: true,
-          noCheckFormats: true,
-          format: 'best',
           quiet: true,
-          userAgent: ua,
           addHeader: [
             'referer:https://www.youtube.com/',
             'accept-language:en-US,en;q=0.9',
-            'origin:https://www.youtube.com',
           ],
-          extractorArgs: `youtube:player_client=${client}`,
         };
 
         if (useCookies) {
           options.cookies = cookiesPath;
+        }
+
+        // Only add extractor args if a specific client is requested
+        if (client) {
+          options.extractorArgs = `youtube:player_client=${client}`;
+          console.log(`[yt-dlp] Trying client: ${client}`);
+        } else {
+          console.log(`[yt-dlp] Trying default web extraction...`);
         }
 
         const output = await youtubedl(url, options);
@@ -71,11 +67,10 @@ async function extractWithYtdlp(url) {
       } catch (err) {
         lastError = err;
         const errMsg = err.message || "";
-        // If it's not a bot error, don't bother retrying with other clients
-        if (!errMsg.includes("Sign in to confirm you") && !errMsg.includes("bot")) {
-          break;
-        }
-        console.log(`[yt-dlp] Client ${client} failed with bot detection, trying next...`);
+        console.log(`[yt-dlp] Client ${client || 'default'} failed: ${errMsg.split('\n')[0]}`);
+        
+        // If it's a "format not available" error, keep trying other clients
+        // If it's a bot error, keep trying other clients
       }
     }
 
