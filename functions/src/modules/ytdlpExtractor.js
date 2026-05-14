@@ -10,9 +10,22 @@ async function extractWithYtdlp(url) {
   try {
     console.log(`[yt-dlp] Extracting info for: ${url}`);
     
-    // Path to cookies file if the user uploads one to bypass bot detection
-    const cookiesPath = path.join(process.cwd(), 'cookies.txt');
-    const useCookies = fs.existsSync(cookiesPath);
+    // Path to cookies file (check both script dir and current working dir)
+    const possiblePaths = [
+      path.join(__dirname, '..', '..', 'cookies.txt'),
+      path.join(process.cwd(), 'cookies.txt'),
+      path.join(process.cwd(), 'functions', 'cookies.txt')
+    ];
+    
+    let cookiesPath = null;
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        cookiesPath = p;
+        break;
+      }
+    }
+
+    const useCookies = !!cookiesPath;
     if (useCookies) console.log(`[yt-dlp] Using cookies from: ${cookiesPath}`);
 
     // List of clients to try for YouTube (some are harder for YouTube to block than others)
