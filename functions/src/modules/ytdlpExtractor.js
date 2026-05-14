@@ -15,8 +15,10 @@ async function extractWithYtdlp(url) {
       dumpJson: true,
       noWarnings: true,
       noPlaylist: true,
+      flatPlaylist: true, // Speeds up extraction by not fetching playlist details
       callHome: false,
       noCheckCertificate: true,
+      quiet: true,
     });
 
     if (!output || !output.formats) {

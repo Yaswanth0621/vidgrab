@@ -1,6 +1,6 @@
 const express = require("express");
 const sanitize = require("sanitize-filename");
-const { downloadHlsStream, downloadDirectFile } = require("../modules/segmentDownloader");
+const { downloadHlsStream, downloadDirectFile, proxyDirectStream } = require("../modules/segmentDownloader");
 const { mergeHlsSegments } = require("../modules/mediaMerger");
 const { streamFileToClient } = require("../modules/deliveryHandler");
 const { getTempPath } = require("../utils/fileHelper");
@@ -37,9 +37,8 @@ router.post("/", async (req, res, next) => {
     } 
     // Direct File (MP4, WebM, etc.)
     else {
-      const { outFile, sessionId } = await downloadDirectFile(streamUrl, referer);
-      finalFilePath = outFile;
-      cleanupPaths.push(finalFilePath);
+      console.log(`[Download] Proxying direct stream for: ${finalFilename}`);
+      return await proxyDirectStream(streamUrl, res, finalFilename, referer);
     }
 
     // 3. Stream to client

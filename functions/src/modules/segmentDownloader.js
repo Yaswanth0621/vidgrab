@@ -90,4 +90,36 @@ async function downloadWithRetry(url, destFile, referer, retries = MAX_RETRIES) 
   }
 }
 
-module.exports = { downloadHlsStream, downloadDirectFile };
+async function proxyDirectStream(url, res, filename, referer) {
+  const response = await axios({
+    method: "GET",
+    url,
+    headers: getMediaHeaders(referer || url),
+    responseType: "stream",
+    timeout: 300000, // 5 minutes for large files
+  });
+
+  const totalSize = response.headers["content-length"];
+  const contentType = response.headers["content-type"] || "application/octet-stream";
+  
+  const headers = {
+    "Content-Type": contentType,
+    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Accept-Ranges": "bytes",
+    "Cache-Control": "no-cache",
+  };
+
+  if (totalSize) {
+    headers["Content-Length"] = totalSize;
+  }
+
+  res.writeHead(200, headers);
+  response.data.pipe(res);
+
+  return new Promise((resolve, reject) => {
+    response.data.on("end", resolve);
+    response.data.on("error", reject);
+  });
+}
+
+module.exports = { downloadHlsStream, downloadDirectFile, proxyDirectStream };
