@@ -15,10 +15,16 @@ async function extractWithYtdlp(url) {
       dumpJson: true,
       noWarnings: true,
       noPlaylist: true,
-      flatPlaylist: true, // Speeds up extraction by not fetching playlist details
-      callHome: false,
+      flatPlaylist: true,
       noCheckCertificate: true,
       quiet: true,
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+      addHeader: [
+        'referer:https://www.google.com/',
+        'accept-language:en-US,en;q=0.9',
+      ],
+      // Use iOS client to bypass bot detection (common trick)
+      extractorArgs: 'youtube:player_client=ios,web',
     });
 
     if (!output || !output.formats) {
