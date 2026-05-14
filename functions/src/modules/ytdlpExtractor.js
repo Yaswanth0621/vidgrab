@@ -1,4 +1,6 @@
 const youtubedl = require('youtube-dl-exec');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * yt-dlp Extractor
@@ -8,10 +10,12 @@ async function extractWithYtdlp(url) {
   try {
     console.log(`[yt-dlp] Extracting info for: ${url}`);
     
-    // We use --dump-json to get the metadata without downloading
-    // --no-warnings keeps stdout clean if we were parsing it manually, but youtube-dl-exec handles json output well
-    // --no-playlist ensures we only get the single video if a playlist URL is provided
-    const output = await youtubedl(url, {
+    // Path to cookies file if the user uploads one to bypass bot detection
+    const cookiesPath = path.join(process.cwd(), 'cookies.txt');
+    const useCookies = fs.existsSync(cookiesPath);
+    if (useCookies) console.log(`[yt-dlp] Using cookies from: ${cookiesPath}`);
+
+    const options = {
       dumpJson: true,
       noWarnings: true,
       noPlaylist: true,
@@ -24,9 +28,14 @@ async function extractWithYtdlp(url) {
         'accept-language:en-US,en;q=0.9',
         'origin:https://www.youtube.com',
       ],
-      // Use Android client which is currently more resilient to bot detection
       extractorArgs: 'youtube:player_client=android,web',
-    });
+    };
+
+    if (useCookies) {
+      options.cookie = cookiesPath;
+    }
+
+    const output = await youtubedl(url, options);
 
     if (!output || !output.formats) {
        throw new Error("yt-dlp could not find formats for this URL");
