@@ -52,14 +52,18 @@ async function extractWithYtdlp(url) {
 
         if (useCookies) {
           options.cookies = cookiesPath;
+          options.noCacheDir = true;
         }
 
-        // Only add extractor args if a specific client is requested
+        // Use a "Super-Client" string to let yt-dlp pick the best one automatically
         if (client) {
           options.extractorArgs = `youtube:player_client=${client}`;
-          console.log(`[yt-dlp] Trying client: ${client}`);
+          options.format = 'bestvideo+bestaudio/best';
+          console.log(`[yt-dlp] Trying client(s): ${client}`);
         } else {
-          console.log(`[yt-dlp] Trying default web extraction...`);
+          // Standard first attempt with a robust combo
+          options.extractorArgs = 'youtube:player_client=mweb,android,web,tvhtml5';
+          console.log(`[yt-dlp] Trying multi-client combo (mweb,android,web,tvhtml5)...`);
         }
 
         const output = await youtubedl(url, options);
