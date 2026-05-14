@@ -28,7 +28,7 @@ async function extractWithYtdlp(url) {
         'accept-language:en-US,en;q=0.9',
         'origin:https://www.youtube.com',
       ],
-      extractorArgs: 'youtube:player_client=android,web',
+      extractorArgs: 'youtube:player_client=tvhtml5,android,web',
     };
 
     if (useCookies) {
