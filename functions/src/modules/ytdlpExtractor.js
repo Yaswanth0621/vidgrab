@@ -59,7 +59,7 @@ async function extractWithYtdlp(url) {
         };
 
         if (useCookies) {
-          options.cookie = cookiesPath;
+          options.cookies = cookiesPath;
         }
 
         const output = await youtubedl(url, options);
