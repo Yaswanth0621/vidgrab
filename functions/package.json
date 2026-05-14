@@ -7,7 +7,7 @@
   },
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "chmod +x bin/yt-dlp || true; node server.js",
     "build": "chmod +x bin/yt-dlp || true",
     "deploy": "echo 'Deploy via Render or similar'"
   },
