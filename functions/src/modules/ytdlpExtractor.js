@@ -56,13 +56,21 @@ async function extractWithYtdlp(url) {
           '--no-check-certificate',
           '--no-check-formats',
           '--quiet',
-          '--add-header', 'referer:https://www.youtube.com/',
-          '--add-header', 'accept-language:en-US,en;q=0.9'
+          '--impersonate', 'chrome', // Mimic Chrome TLS/Fingerprint
+          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          '--add-header', 'referer:https://www.google.com/',
+          '--add-header', 'accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          '--add-header', 'accept-language:en-US,en;q=0.9',
+          '--add-header', 'sec-ch-ua: "Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+          '--add-header', 'sec-ch-ua-mobile: ?0',
+          '--add-header', 'sec-ch-ua-platform: "Windows"'
         ];
 
         if (useCookies) {
           args.push('--cookies', cookiesPath);
           args.push('--no-cache-dir');
+          // Add a tiny delay to look more human when using cookies
+          args.push('--sleep-requests', '0.5');
         }
 
         if (client) {
