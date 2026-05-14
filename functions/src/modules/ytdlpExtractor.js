@@ -15,32 +15,57 @@ async function extractWithYtdlp(url) {
     const useCookies = fs.existsSync(cookiesPath);
     if (useCookies) console.log(`[yt-dlp] Using cookies from: ${cookiesPath}`);
 
-    const options = {
-      dumpJson: true,
-      noWarnings: true,
-      noPlaylist: true,
-      flatPlaylist: true,
-      noCheckCertificate: true,
-      quiet: true,
-      userAgent: 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36',
-      addHeader: [
-        'referer:https://www.youtube.com/',
-        'accept-language:en-US,en;q=0.9',
-        'origin:https://www.youtube.com',
-      ],
-      extractorArgs: 'youtube:player_client=tvhtml5,android,web',
-    };
+    // List of clients to try for YouTube (some are harder for YouTube to block than others)
+    const ytClients = ['tvhtml5', 'android', 'ios', 'mweb', 'web'];
+    let lastError = null;
 
-    if (useCookies) {
-      options.cookie = cookiesPath;
+    for (const client of ytClients) {
+      try {
+        const options = {
+          dumpJson: true,
+          noWarnings: true,
+          noPlaylist: true,
+          flatPlaylist: true,
+          noCheckCertificate: true,
+          quiet: true,
+          userAgent: client === 'ios' 
+            ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
+            : 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36',
+          addHeader: [
+            'referer:https://www.youtube.com/',
+            'accept-language:en-US,en;q=0.9',
+            'origin:https://www.youtube.com',
+          ],
+          extractorArgs: `youtube:player_client=${client},web`,
+        };
+
+        if (useCookies) {
+          options.cookie = cookiesPath;
+        }
+
+        const output = await youtubedl(url, options);
+        if (output && output.formats) {
+          return processYtdlpOutput(output);
+        }
+      } catch (err) {
+        lastError = err;
+        const errMsg = err.message || "";
+        // If it's not a bot error, don't bother retrying with other clients
+        if (!errMsg.includes("Sign in to confirm you") && !errMsg.includes("bot")) {
+          break;
+        }
+        console.log(`[yt-dlp] Client ${client} failed with bot detection, trying next...`);
+      }
     }
 
-    const output = await youtubedl(url, options);
+    throw lastError || new Error("yt-dlp could not find formats for this URL");
+  } catch (error) {
+    console.error(`[yt-dlp Extractor] Error: ${error.message}`);
+    throw new Error(`Universal extraction failed: ${error.message}`);
+  }
+}
 
-    if (!output || !output.formats) {
-       throw new Error("yt-dlp could not find formats for this URL");
-    }
-
+function processYtdlpOutput(output) {
     const title = output.title || "Video";
     const thumbnail = output.thumbnail || "";
     const description = output.description || "";
