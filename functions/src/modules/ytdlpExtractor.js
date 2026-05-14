@@ -137,11 +137,6 @@ function processYtdlpOutput(output) {
       description,
       formats
     };
-
-  } catch (err) {
-    console.error(`[yt-dlp Extractor] Error:`, err.message);
-    throw new Error(`Universal extraction failed: ${err.message}`);
-  }
 }
 
 module.exports = { extractWithYtdlp };
