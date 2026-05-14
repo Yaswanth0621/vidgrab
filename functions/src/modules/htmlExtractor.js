@@ -91,9 +91,23 @@ async function extractFromHtml(pageUrl) {
   $("iframe").each((_, el) => {
     const src = $(el).attr("src") || $(el).attr("data-src");
     if (src && src.trim()) {
-      iframes.push(resolveUrl(src, pageUrl));
+      const resolved = resolveUrl(src, pageUrl);
+      iframes.push(resolved);
+      
+      // Special case: VidZP relative ip129jk
+      if (resolved.includes("/ip129jk?id=")) {
+         iframes.push(resolved); // Already resolved
+      }
     }
   });
+
+  // 8. Special VidZP check
+  if (pageUrl.includes("vidzp.com")) {
+    const iframeIdMatch = html.match(/var iframeId = '([^']+)';/);
+    if (iframeIdMatch) {
+       iframes.push(resolveUrl(`/ip129jk?id=${iframeIdMatch[1]}`, pageUrl));
+    }
+  }
 
   // Deduplicate
   const unique = [];
@@ -113,19 +127,17 @@ async function extractFromHtml(pageUrl) {
     "";
   const description = $('meta[property="og:description"]').attr("content") || "";
 
-  return { videos: unique, iframes, title, thumbnail, description, html };
+  return { videos: unique, iframes: [...new Set(iframes)], title, thumbnail, description, html };
 }
 
 function extractUrlsFromScript(scriptContent, baseUrl, results) {
   // Match common m3u8/mpd/mp4 patterns
   const patterns = [
-    /["'`](https?:\/\/[^"'`\s]+\.m3u8[^"'`\s]*)/gi,
-    /["'`](https?:\/\/[^"'`\s]+\.mpd[^"'`\s]*)/gi,
-    /["'`](https?:\/\/[^"'`\s]+\.mp4[^"'`\s]*)/gi,
-    /["'`](https?:\/\/[^"'`\s]+\.webm[^"'`\s]*)/gi,
+    /["'`](https?:\/\/[^"'` \n\r\t]+\.(?:m3u8|mpd|mp4|webm|mov|ts)[^"'` \n\r\t]*)/gi,
+    /["'`](https?:\/\/[^"'` \n\r\t]+playlist\.m3u8[^"'` \n\r\t]*)/gi,
     /"file"\s*:\s*["'`](https?:\/\/[^"'`\s]+)/gi,
-    /"src"\s*:\s*["'`](https?:\/\/[^"'`\s]+\.(?:mp4|m3u8|mpd|webm)[^"'`\s]*)/gi,
-    /source\s*:\s*["'`](https?:\/\/[^"'`\s]+\.(?:mp4|m3u8|mpd|webm)[^"'`\s]*)/gi,
+    /"src"\s*:\s*["'`](https?:\/\/[^"'` \n\r\t]+\.(?:mp4|m3u8|mpd|webm)[^"'` \n\r\t]*)/gi,
+    /source\s*:\s*["'`](https?:\/\/[^"'` \n\r\t]+\.(?:mp4|m3u8|mpd|webm)[^"'` \n\r\t]*)/gi,
     /hlsUrl\s*[=:]\s*["'`](https?:\/\/[^"'`\s]+)/gi,
     /dashUrl\s*[=:]\s*["'`](https?:\/\/[^"'`\s]+)/gi,
     /videoUrl\s*[=:]\s*["'`](https?:\/\/[^"'`\s]+)/gi,
@@ -136,8 +148,12 @@ function extractUrlsFromScript(scriptContent, baseUrl, results) {
     let match;
     while ((match = pattern.exec(scriptContent)) !== null) {
       const url = match[1].replace(/\\u002F/g, "/").replace(/\\/g, "");
-      if (url && isMediaUrl(url)) {
-        results.push({ url, type: detectType(url), source: "script_scan" });
+      if (url) {
+        // Handle relative URLs in scripts if they start with /
+        const resolved = url.startsWith("http") ? url : resolveUrl(url, baseUrl);
+        if (isMediaUrl(resolved)) {
+           results.push({ url: resolved, type: detectType(resolved), source: "script_scan" });
+        }
       }
     }
   }
