@@ -41,8 +41,8 @@ async function extractWithYtdlp(url) {
     const useCookies = !!cookiesPath;
     if (useCookies) console.log(`[yt-dlp] Using cookies from: ${cookiesPath}`);
 
-    // Multi-client strategy
-    const ytClients = [null, 'tvhtml5', 'android', 'mweb', 'web', 'ios'];
+    const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+    const ytClients = isYouTube ? [null, 'tvhtml5', 'android', 'mweb', 'web', 'ios'] : [null];
     let lastError = null;
 
     for (const client of ytClients) {
@@ -56,7 +56,7 @@ async function extractWithYtdlp(url) {
           '--no-check-certificate',
           '--no-check-formats',
           '--quiet',
-          '--impersonate', 'chrome', // Mimic Chrome TLS/Fingerprint
+          '--impersonate', 'chrome',
           '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           '--add-header', 'referer:https://www.google.com/',
           '--add-header', 'accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -69,16 +69,19 @@ async function extractWithYtdlp(url) {
         if (useCookies) {
           args.push('--cookies', cookiesPath);
           args.push('--no-cache-dir');
-          // Add a tiny delay to look more human when using cookies
-          args.push('--sleep-requests', '0.5');
+          if (isYouTube) args.push('--sleep-requests', '0.5');
         }
 
-        if (client) {
-          args.push('--extractor-args', `youtube:player_client=${client}`);
-          console.log(`[yt-dlp] Trying client(s): ${client}`);
+        if (isYouTube) {
+          if (client) {
+            args.push('--extractor-args', `youtube:player_client=${client}`);
+            console.log(`[yt-dlp] Trying YouTube client: ${client}`);
+          } else {
+            args.push('--extractor-args', 'youtube:player_client=mweb,android,web,tvhtml5');
+            console.log(`[yt-dlp] Trying YouTube multi-client combo...`);
+          }
         } else {
-          args.push('--extractor-args', 'youtube:player_client=mweb,android,web,tvhtml5');
-          console.log(`[yt-dlp] Trying multi-client combo (mweb,android,web,tvhtml5)...`);
+          console.log(`[yt-dlp] Universal extraction attempt for: ${url}`);
         }
 
         const { stdout } = await execFilePromise(exePath, args, { maxBuffer: 10 * 1024 * 1024 });
