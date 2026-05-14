@@ -84,6 +84,23 @@ router.post("/", async (req, res, next) => {
           title = extractResult.title || title;
           thumbnail = extractResult.thumbnail || thumbnail;
 
+          // 4. Handle iframes recursion (e.g. for VidZP)
+          if (extractResult.videos.length === 0 && extractResult.iframes && extractResult.iframes.length > 0) {
+            console.log(`[Analyze] No videos found in top-level, scanning ${extractResult.iframes.length} iframes...`);
+            for (const frameUrl of extractResult.iframes) {
+              try {
+                // One level of recursion is usually enough
+                const frameResult = await extractFromHtml(frameUrl);
+                if (frameResult && frameResult.videos.length > 0) {
+                  extractResult.videos.push(...frameResult.videos);
+                  console.log(`[Analyze] Found ${frameResult.videos.length} videos inside iframe: ${frameUrl}`);
+                }
+              } catch (e) {
+                console.warn(`[Analyze] Failed to scan iframe ${frameUrl}: ${e.message}`);
+              }
+            }
+          }
+
           // Process found URLs
           for (const [idx, v] of (extractResult.videos || []).entries()) {
             if (v.type === "hls") {
