@@ -1,0 +1,97 @@
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title> clea.mp4 </title>
+        <link rel="prefetch" href="https://vidzp.com/embed.php?bucket=temporary&id=mijbenyjlbk6">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+        <style>
+            body { margin: 0 auto; background: #000; }
+            .vv-player { width: 100%; height: 100%; }
+            .video-link { display: block; width: 100%; overflow: visible; position: relative; background-color: #000; cursor: pointer; }
+            .video-link .thumbnail { width: 100vw; height: 100vh; object-fit: contain; object-position: center; }
+            .video-link::after {
+                content: ""; position: absolute; top: 50%; left: 50%; border-radius: 50%;
+                transform: translate(-50%, -50%); background: #fe6081; width: 48px; height: 48px;
+                background-image: url(data:image/svg+xml;base64,PHN2ZyAgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiAgd2lkdGg9IjI0IiAgaGVpZ2h0PSIyNCIgIHZpZXdCb3g9IjAgMCAyNCAyNCIgIGZpbGw9IiNmZmYiICBjbGFzcz0iaWNvbiBpY29uLXRhYmxlciBpY29ucy10YWJsZXItZmlsbGVkIGljb24tdGFibGVyLXBsYXllci1wbGF5Ij48cGF0aCBzdHJva2U9Im5vbmUiIGQ9Ik0wIDBoMjR2MjRIMHoiIGZpbGw9Im5vbmUiLz48cGF0aCBkPSJNNiA0djE2YTEgMSAwIDAgMCAxLjUyNCAuODUybDEzIC04YTEgMSAwIDAgMCAwIC0xLjcwNGwtMTMgLThhMSAxIDAgMCAwIC0xLjUyNCAuODUyeiIgLz48L3N2Zz4=);
+                background-position: center; background-repeat: no-repeat; background-size: 24px;
+                filter: drop-shadow(0 0 10px rgba(0, 0, 0, .4));
+            }
+        </style>
+        <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.webp">
+    </head>
+    
+    <body id="videq">
+        <script type="text/javascript">
+            var _0x4fca91=function(a,b){return "placeholder_anti_debug"}; 
+        </script>
+
+        <div class="video-content" id="vv-player">
+            <div id="player">
+                <div class="video-link">
+                    <img class="thumbnail" src="https://i.vidzp.com/image/TJOmVzbSvc.jpg">
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        function base64Encode(e){return btoa(unescape(encodeURIComponent(e)))}
+        
+        const videoId="mijbenyjlbk6",
+              ipx=base64Encode("114.10.152.108"),
+              baseURL="",
+              playerPath="https://vidzp.com/embed.php?bucket=temporary&id=mijbenyjlbk6",
+              timer=32e3,
+              fullURL="https://vidzp.com/embed.php?bucket=temporary&id=mijbenyjlbk6",
+              fpPromise=import("https://openfpcdn.io/fingerprintjs/v3").then(e=>e.load());
+
+        async function detectAdBlockAndTrackView(){
+            let e=!1;
+            try{
+                await fetch(new Request("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js")).catch(()=>{e=!0})
+            }catch(a){e=!0}
+            
+            // JQUERY selector using escaped $ sign
+            $(".video-link").on("click",async function(){
+                let a=$("#player");
+                e ? a.html('<iframe class="vv-player" src="'+fullURL+'" frameborder="0" allowfullscreen="no"></iframe>') 
+                  : a.html('<iframe class="vv-player" src="'+fullURL+'" frameborder="0" allowfullscreen></iframe>'),
+                
+                videoId && "0"!==videoId && "null"!==videoId && setTimeout(async function(){
+                    try{
+                        let e=await fpPromise,
+                            a=await e.get(),
+                            t={
+                                ipx:ipx,
+                                id:videoId,
+                                dx:localStorage.getItem("accessToken"),
+                                fp:a.visitorId,
+                                bot:a.bot,
+                                mobile:/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)?1:0,
+                                touch:"ontouchstart"in window?1:0,
+                                screen:window.screen?screen.width+"x"+screen.height:"",
+                                ua:navigator.userAgent
+                            };
+                        
+                        // AJAX call using escaped $ sign
+                        $.ajax({
+                            type: "POST",
+                            url: "/aclck",
+                            dataType: "json",
+                            async: !0,
+                            data: t,
+                            // TAMBAHAN PENTING: Memaksa browser mengirim cookie
+                            xhrFields: {
+                                withCredentials: true
+                            },
+                            crossDomain: true, // Kadang diperlukan jika dianggap beda origin
+                            success: function(e){ console.log("ACLCK:", e) },
+                            error: function(xhr, status, error) { console.warn("ACLCK Fail:", error); }
+                        })
+                    }catch(i){console.warn("tracking error",i)}
+                },32e3)
+            })
+        }
+        detectAdBlockAndTrackView();
+        </script>
+    </body>
+</html>

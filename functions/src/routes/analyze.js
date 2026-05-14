@@ -92,25 +92,51 @@ router.post("/", async (req, res, next) => {
           title = extractResult.title || title;
           thumbnail = extractResult.thumbnail || thumbnail;
 
-          // 4. Handle iframes recursion (e.g. for VidZP)
+          // 4. Recursive Iframe scanning (e.g. for VidZP deep nesting)
           if (extractResult.videos.length === 0 && extractResult.iframes && extractResult.iframes.length > 0) {
-            console.log(`[Analyze] No videos found in top-level, scanning ${extractResult.iframes.length} iframes...`);
-            for (const frameUrl of extractResult.iframes) {
-              try {
-                // One level of recursion is usually enough
-                const frameResult = await extractFromHtml(frameUrl);
-                if (frameResult && frameResult.videos.length > 0) {
-                  extractResult.videos.push(...frameResult.videos);
-                  console.log(`[Analyze] Found ${frameResult.videos.length} videos inside iframe: ${frameUrl}`);
+            console.log(`[Analyze] No videos in top-level, entering recursive iframe scan...`);
+            
+            const maxDepth = 3;
+            let currentDepth = 0;
+            let framesToScan = [...extractResult.iframes];
+            const scannedFrames = new Set([url]);
+            const foundVideos = [];
+
+            while (currentDepth < maxDepth && framesToScan.length > 0) {
+              console.log(`[Analyze] Scanning depth ${currentDepth + 1}, ${framesToScan.length} frames...`);
+              const nextBatch = [];
+              
+              for (const frameUrl of framesToScan) {
+                if (scannedFrames.has(frameUrl)) continue;
+                scannedFrames.add(frameUrl);
+
+                try {
+                  const frameResult = await extractFromHtml(frameUrl);
+                  if (frameResult && frameResult.videos.length > 0) {
+                    foundVideos.push(...frameResult.videos);
+                    console.log(`[Analyze] Found ${frameResult.videos.length} videos inside frame: ${frameUrl}`);
+                  }
+                  if (frameResult && frameResult.iframes) {
+                    nextBatch.push(...frameResult.iframes);
+                  }
+                } catch (e) {
+                  console.warn(`[Analyze] Failed to scan frame ${frameUrl}: ${e.message}`);
                 }
-              } catch (e) {
-                console.warn(`[Analyze] Failed to scan iframe ${frameUrl}: ${e.message}`);
               }
+              
+              framesToScan = nextBatch;
+              currentDepth++;
+              
+              // If we found videos at this depth, we can probably stop unless we want ALL qualities
+              if (foundVideos.length > 0) break;
             }
+            
+            extractResult.videos.push(...foundVideos);
           }
 
           // Process found URLs
-          for (const [idx, v] of (extractResult.videos || []).entries()) {
+          const finalVideos = extractResult.videos || [];
+          for (const [idx, v] of finalVideos.entries()) {
             if (v.type === "hls") {
               try {
                 const hlsData = await parseHls(v.url, url);

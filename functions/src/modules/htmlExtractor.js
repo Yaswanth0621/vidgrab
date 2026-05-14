@@ -131,6 +131,43 @@ async function extractFromHtml(pageUrl) {
          console.log(`[HTML Extractor] Found VidZP iframeId: ${iframeIdMatch[1]}`);
          iframes.push(resolveUrl(`/ip129jk?id=${iframeIdMatch[1]}`, pageUrl));
       }
+      
+      // Look for link prefetch (used by VidZP)
+      $('link[rel="prefetch"]').each((i, el) => {
+        const href = $(el).attr('href');
+        if (href) {
+          if (href.includes('.mp4') || href.includes('.m3u8')) {
+            found.push({ url: resolveUrl(href, pageUrl), type: href.includes('.m3u8') ? "hls" : "mp4", source: "prefetch" });
+          } else if (href.includes('embed.php') || href.includes('ip129jk')) {
+            iframes.push(resolveUrl(href, pageUrl));
+          }
+        }
+      });
+
+      // Deep Script Scanning (for hidden URLs in JS)
+      $('script').each((i, el) => {
+        const content = $(el).html();
+        if (!content) return;
+
+        // Look for fullURL or playerPath (VidZP specific)
+        const vidzpMatch = content.match(/fullURL\s*=\s*["'](https?:\/\/[^"']+)["']/);
+        if (vidzpMatch) {
+          iframes.push(vidzpMatch[1]);
+          console.log(`[HTML Extractor] Found VidZP fullURL in script: ${vidzpMatch[1]}`);
+        }
+
+        // Generic URL finder for .m3u8 or .mp4 inside strings
+        const streamMatches = content.match(/["'](https?:\/\/[^"']+\.(m3u8|mp4)[^"']*)["']/g);
+        if (streamMatches) {
+          streamMatches.forEach(match => {
+            const cleanUrl = match.replace(/["']/g, '');
+            if (!found.some(v => v.url === cleanUrl)) {
+              found.push({ url: cleanUrl, type: cleanUrl.includes('.m3u8') ? "hls" : "mp4", source: "script_scan_deep" });
+              console.log(`[HTML Extractor] Found stream in script: ${cleanUrl}`);
+            }
+          });
+        }
+      });
     }
 
     // Deduplicate
