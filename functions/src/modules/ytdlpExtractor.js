@@ -1,16 +1,29 @@
-const youtubedl = require('youtube-dl-exec');
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
+const util = require('util');
+const execFilePromise = util.promisify(execFile);
 
 /**
- * yt-dlp Extractor
- * Uses the industry standard yt-dlp to extract video information from thousands of sites.
+ * yt-dlp Extractor (Direct Binary Edition)
+ * Calls the bundled yt-dlp binary directly to avoid GitHub rate limits.
  */
 async function extractWithYtdlp(url) {
   try {
     console.log(`[yt-dlp] Extracting info for: ${url}`);
     
-    // Path to cookies file (check both script dir and current working dir)
+    // Find the binary
+    const binaryPath = path.join(__dirname, '..', '..', 'bin', 'yt-dlp');
+    if (!fs.existsSync(binaryPath)) {
+        console.log(`[yt-dlp] Binary not found at ${binaryPath}, trying system path...`);
+    } else {
+        // Ensure it's executable
+        try { fs.chmodSync(binaryPath, 0o755); } catch (e) {}
+    }
+
+    const exePath = fs.existsSync(binaryPath) ? binaryPath : 'yt-dlp';
+
+    // Path to cookies file
     const possiblePaths = [
       path.join(__dirname, '..', '..', 'cookies.txt'),
       path.join(process.cwd(), 'cookies.txt'),
@@ -28,54 +41,50 @@ async function extractWithYtdlp(url) {
     const useCookies = !!cookiesPath;
     if (useCookies) console.log(`[yt-dlp] Using cookies from: ${cookiesPath}`);
 
-    // List of clients to try for YouTube
-    // We start with 'null' (standard web) because with cookies it's most reliable
+    // Multi-client strategy
     const ytClients = [null, 'tvhtml5', 'android', 'mweb', 'web', 'ios'];
     let lastError = null;
 
     for (const client of ytClients) {
       try {
-        const options = {
-          dumpJson: true,
-          noWarnings: true,
-          noPlaylist: true,
-          flatPlaylist: true,
-          noCheckCertificate: true,
-          noCheckFormats: true,
-          format: '*',
-          quiet: true,
-          addHeader: [
-            'referer:https://www.youtube.com/',
-            'accept-language:en-US,en;q=0.9',
-          ],
-        };
+        const args = [
+          url,
+          '--dump-json',
+          '--no-warnings',
+          '--no-playlist',
+          '--flat-playlist',
+          '--no-check-certificate',
+          '--no-check-formats',
+          '--quiet',
+          '--add-header', 'referer:https://www.youtube.com/',
+          '--add-header', 'accept-language:en-US,en;q=0.9'
+        ];
 
         if (useCookies) {
-          options.cookies = cookiesPath;
-          options.noCacheDir = true;
+          args.push('--cookies', cookiesPath);
+          args.push('--no-cache-dir');
         }
 
-        // Use a "Super-Client" string to let yt-dlp pick the best one automatically
         if (client) {
-          options.extractorArgs = `youtube:player_client=${client}`;
+          args.push('--extractor-args', `youtube:player_client=${client}`);
           console.log(`[yt-dlp] Trying client(s): ${client}`);
         } else {
-          // Standard first attempt with a robust combo
-          options.extractorArgs = 'youtube:player_client=mweb,android,web,tvhtml5';
+          args.push('--extractor-args', 'youtube:player_client=mweb,android,web,tvhtml5');
           console.log(`[yt-dlp] Trying multi-client combo (mweb,android,web,tvhtml5)...`);
         }
 
-        const output = await youtubedl(url, options);
-        if (output && output.formats) {
-          return processYtdlpOutput(output);
+        const { stdout } = await execFilePromise(exePath, args, { maxBuffer: 10 * 1024 * 1024 });
+        
+        if (stdout) {
+          const output = JSON.parse(stdout);
+          if (output && output.formats) {
+            return processYtdlpOutput(output);
+          }
         }
       } catch (err) {
         lastError = err;
         const errMsg = err.message || "";
         console.log(`[yt-dlp] Client ${client || 'default'} failed: ${errMsg.split('\n')[0]}`);
-        
-        // If it's a "format not available" error, keep trying other clients
-        // If it's a bot error, keep trying other clients
       }
     }
 
@@ -93,9 +102,7 @@ function processYtdlpOutput(output) {
     
     const formats = [];
 
-    // yt-dlp returns many formats. We want to filter for playable ones.
     for (const f of output.formats) {
-      // Skip formats without URLs or that are just storyboards
       if (!f.url || f.format_id === 'storyboard' || f.protocol === 'mhtml') continue;
 
       let quality = f.format_note || f.resolution || "Auto";
@@ -105,8 +112,6 @@ function processYtdlpOutput(output) {
       
       const isVideo = f.vcodec !== 'none';
       const isAudio = f.acodec !== 'none';
-      
-      // If it has no video and no audio, it's useless
       if (!isVideo && !isAudio) continue;
       
       let type = f.ext || "mp4";
@@ -116,7 +121,6 @@ function processYtdlpOutput(output) {
           type = "dash";
       }
 
-      // Determine label based on adaptive vs combined
       let label = quality;
       let isAdaptive = false;
       
@@ -125,7 +129,7 @@ function processYtdlpOutput(output) {
           isAdaptive = true;
       } else if (!isVideo && isAudio) {
           label = "Audio Only";
-          type = "mp3"; // Simplify for frontend display
+          type = "mp3";
       }
 
       formats.push({
@@ -141,23 +145,15 @@ function processYtdlpOutput(output) {
       });
     }
 
-    // Sort formats: Combined highest quality first, then video-only, then audio-only
     formats.sort((a, b) => {
         if (a.hasVideo && a.hasAudio && (!b.hasVideo || !b.hasAudio)) return -1;
         if ((!a.hasVideo || !a.hasAudio) && b.hasVideo && b.hasAudio) return 1;
-        
-        // Basic resolution sorting if both are combined or both are video-only
         const aRes = parseInt(a.quality) || 0;
         const bRes = parseInt(b.quality) || 0;
         return bRes - aRes;
     });
 
-    return {
-      title,
-      thumbnail,
-      description,
-      formats
-    };
+    return { title, thumbnail, description, formats };
 }
 
 module.exports = { extractWithYtdlp };

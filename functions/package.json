@@ -8,6 +8,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build": "chmod +x bin/yt-dlp || true",
     "deploy": "echo 'Deploy via Render or similar'"
   },
   "dependencies": {
@@ -28,8 +29,7 @@
     "puppeteer-core": "^21.6.1",
     "sanitize-filename": "^1.6.3",
     "tmp": "^0.2.1",
-    "uuid": "^9.0.0",
-    "youtube-dl-exec": "^3.1.6"
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "eslint": "^8.0.0"
