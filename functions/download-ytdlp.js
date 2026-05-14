@@ -2,8 +2,11 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const url = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
-const dest = path.join(__dirname, 'bin', 'yt-dlp');
+const isWin = process.platform === 'win32';
+const url = isWin 
+    ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
+    : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+const dest = path.join(__dirname, 'bin', isWin ? 'yt-dlp.exe' : 'yt-dlp');
 
 if (!fs.existsSync(path.join(__dirname, 'bin'))) {
     fs.mkdirSync(path.join(__dirname, 'bin'));

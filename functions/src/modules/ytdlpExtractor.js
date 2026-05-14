@@ -13,11 +13,14 @@ async function extractWithYtdlp(url) {
     console.log(`[yt-dlp] Extracting info for: ${url}`);
     
     // Find the binary
-    const binaryPath = path.join(__dirname, '..', '..', 'bin', 'yt-dlp');
+    const isWin = process.platform === 'win32';
+    const binaryName = isWin ? 'yt-dlp.exe' : 'yt-dlp';
+    const binaryPath = path.join(__dirname, '..', '..', 'bin', binaryName);
+    
     if (!fs.existsSync(binaryPath)) {
         console.log(`[yt-dlp] Binary not found at ${binaryPath}, trying system path...`);
-    } else {
-        // Ensure it's executable
+    } else if (!isWin) {
+        // Ensure it's executable on Linux/Mac
         try { fs.chmodSync(binaryPath, 0o755); } catch (e) {}
     }
 

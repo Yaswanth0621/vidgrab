@@ -7,8 +7,8 @@
   },
   "main": "server.js",
   "scripts": {
-    "start": "chmod +x bin/yt-dlp || true; node server.js",
-    "build": "chmod +x bin/yt-dlp || true",
+    "start": "node server.js",
+    "build": "node download-ytdlp.js && (chmod +x bin/yt-dlp || true)",
     "deploy": "echo 'Deploy via Render or similar'"
   },
   "dependencies": {

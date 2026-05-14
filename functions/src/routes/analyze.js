@@ -7,6 +7,7 @@ const { parseDash } = require("../modules/dashParser");
 const { extractYoutubeInfo } = require("../modules/youtubeExtractor");
 const { extractFacebookInfo } = require("../modules/facebookExtractor");
 const { extractWithYtdlp } = require("../modules/ytdlpExtractor");
+const { agenticExtract } = require("../modules/agenticExtractor");
 
 const router = express.Router();
 
@@ -57,113 +58,15 @@ router.post("/", async (req, res, next) => {
       thumbnail = fbData.thumbnail;
       formats = fbData.formats;
     }
-    // 3. Universal Fallback via yt-dlp
+    // 3. Universal Fallback via Agentic Extractor
     else {
-      let skipYtdlp = source.skipYtdlp || false;
-      let ytdlpData = null;
+      console.log(`[Analyze] Handing over to Agentic Extractor...`);
+      const agentResult = await agenticExtract(url);
+      title = agentResult.title || title;
+      thumbnail = agentResult.thumbnail || thumbnail;
+      formats = agentResult.formats;
+    }
 
-      if (!skipYtdlp) {
-        console.log(`[Analyze] Attempting universal extraction with yt-dlp...`);
-        try {
-          ytdlpData = await extractWithYtdlp(url);
-          title = ytdlpData.title;
-          thumbnail = ytdlpData.thumbnail;
-          formats = ytdlpData.formats;
-        } catch (e) {
-          console.warn(`[Analyze] yt-dlp failed: ${e.message}, trying static HTML fallback...`);
-        }
-      }
-
-      if (!ytdlpData) {
-        // First try fast static extraction
-        let extractResult = await extractFromHtml(url);
-        
-        // If no videos found, fallback to Puppeteer (if available/configured)
-        if (extractResult && extractResult.videos && extractResult.videos.length === 0) {
-           console.log(`[Analyze] No static videos found, trying Puppeteer...`);
-           try {
-             extractResult = await extractWithPuppeteer(url);
-           } catch (e) {
-             console.warn(`[Analyze] Puppeteer failed: ${e.message}`);
-           }
-        }
-
-        if (extractResult) {
-          title = extractResult.title || title;
-          thumbnail = extractResult.thumbnail || thumbnail;
-
-          // 4. Recursive Iframe scanning (e.g. for VidZP deep nesting)
-          if (extractResult.videos.length === 0 && extractResult.iframes && extractResult.iframes.length > 0) {
-            console.log(`[Analyze] No videos in top-level, entering recursive iframe scan...`);
-            
-            const maxDepth = 3;
-            let currentDepth = 0;
-            let framesToScan = [...extractResult.iframes];
-            const scannedFrames = new Set([url]);
-            const foundVideos = [];
-
-            while (currentDepth < maxDepth && framesToScan.length > 0) {
-              console.log(`[Analyze] Scanning depth ${currentDepth + 1}, ${framesToScan.length} frames...`);
-              const nextBatch = [];
-              
-              for (const frameUrl of framesToScan) {
-                if (scannedFrames.has(frameUrl)) continue;
-                scannedFrames.add(frameUrl);
-
-                try {
-                  const frameResult = await extractFromHtml(frameUrl);
-                  if (frameResult && frameResult.videos.length > 0) {
-                    foundVideos.push(...frameResult.videos);
-                    console.log(`[Analyze] Found ${frameResult.videos.length} videos inside frame: ${frameUrl}`);
-                  }
-                  if (frameResult && frameResult.iframes) {
-                    nextBatch.push(...frameResult.iframes);
-                  }
-                } catch (e) {
-                  console.warn(`[Analyze] Failed to scan frame ${frameUrl}: ${e.message}`);
-                }
-              }
-              
-              framesToScan = nextBatch;
-              currentDepth++;
-              
-              // If we found videos at this depth, we can probably stop unless we want ALL qualities
-              if (foundVideos.length > 0) break;
-            }
-            
-            extractResult.videos.push(...foundVideos);
-          }
-
-          // Process found URLs
-          const finalVideos = extractResult.videos || [];
-          for (const [idx, v] of finalVideos.entries()) {
-            if (v.type === "hls") {
-              try {
-                const hlsData = await parseHls(v.url, url);
-                const hlsFormats = hlsData.qualities.map(q => ({
-                  id: `${v.type}_${idx}_${q.id}`,
-                  type: "hls",
-                  quality: q.quality,
-                  url: q.url,
-                  referer: url
-                }));
-                formats.push(...hlsFormats);
-              } catch (e) {
-                console.warn(`[Analyze] Failed to parse HLS ${v.url}: ${e.message}`);
-              }
-            } else {
-              formats.push({
-                id: `${v.type}_${idx}`,
-                type: v.type,
-                quality: "Auto",
-                url: v.url,
-                referer: url
-              });
-            }
-          }
-        }
-      } // end catch
-    } // end else
 
     if (formats.length === 0) {
       return res.status(404).json({ error: "No video formats found at this URL." });

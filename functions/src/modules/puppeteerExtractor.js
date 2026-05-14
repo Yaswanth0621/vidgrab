@@ -109,7 +109,7 @@ async function extractWithPuppeteer(pageUrl, timeout = 30000) {
     // Wait a bit for lazy-loaded content
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    // Try clicking play buttons
+    // Try clicking play buttons to trigger media requests
     const playSelectors = [
       'button[class*="play"]',
       'button[aria-label*="play" i]',
@@ -118,17 +118,45 @@ async function extractWithPuppeteer(pageUrl, timeout = 30000) {
       '[data-action="play"]',
       '.vjs-big-play-button',
       '.ytp-play-button',
+      '.video-click-to-play'
     ];
 
     for (const sel of playSelectors) {
       try {
         const btn = await page.$(sel);
         if (btn) {
+          console.log(`[Puppeteer] Triggering play button: ${sel}`);
           await btn.click();
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
           break;
         }
       } catch (_) {}
+    }
+
+    // SPECIAL: Extract YouTube direct URLs from the page state if network interception missed them
+    if (pageUrl.includes('youtube.com') || pageUrl.includes('youtu.be')) {
+      const ytData = await page.evaluate(() => {
+        try {
+          return {
+            playerResponse: window.ytInitialPlayerResponse,
+            playerConfig: window.ytplayer?.config
+          };
+        } catch (e) { return null; }
+      });
+
+      if (ytData && ytData.playerResponse) {
+        const formats = ytData.playerResponse.streamingData?.adaptiveFormats || [];
+        for (const f of formats) {
+          if (f.url) {
+            interceptedUrls.set(f.url, {
+              url: f.url,
+              type: f.mimeType?.includes('video') ? 'mp4' : 'audio',
+              quality: f.qualityLabel || f.audioQuality || 'Auto',
+              source: 'yt_internal_state'
+            });
+          }
+        }
+      }
     }
 
     // Extract page metadata
@@ -143,7 +171,7 @@ async function extractWithPuppeteer(pageUrl, timeout = 30000) {
       };
     });
 
-    // Also search page source for video URLs
+    // Also search page source for video URLs (Deep Scan)
     const pageContent = await page.content();
     const scriptUrls = [];
     extractUrlsFromText(pageContent, scriptUrls);
