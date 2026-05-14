@@ -63,8 +63,14 @@ async function analyzeUrl(url) {
       "medal.tv",
       "clippituser.tv",
     ];
+
     if (YTDLP_SITES.some(site => url.includes(site))) {
       return { type: "html", url, isDirect: false }; // Will fall to yt-dlp in analyze route
+    }
+
+    // Special handling for sites we have custom logic for or that fail yt-dlp
+    if (url.includes("vidzp.com") || url.includes("snapchat.com")) {
+      return { type: "html", url, isDirect: false, skipYtdlp: true };
     }
 
     // Check if URL has a known media extension

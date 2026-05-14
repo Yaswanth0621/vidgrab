@@ -59,14 +59,22 @@ router.post("/", async (req, res, next) => {
     }
     // 3. Universal Fallback via yt-dlp
     else {
-      console.log(`[Analyze] Attempting universal extraction with yt-dlp...`);
-      try {
-        const ytdlpData = await extractWithYtdlp(url);
-        title = ytdlpData.title;
-        thumbnail = ytdlpData.thumbnail;
-        formats = ytdlpData.formats;
-      } catch (e) {
-        console.warn(`[Analyze] yt-dlp failed: ${e.message}, trying static HTML fallback...`);
+      let skipYtdlp = source.skipYtdlp || false;
+      let ytdlpData = null;
+
+      if (!skipYtdlp) {
+        console.log(`[Analyze] Attempting universal extraction with yt-dlp...`);
+        try {
+          ytdlpData = await extractWithYtdlp(url);
+          title = ytdlpData.title;
+          thumbnail = ytdlpData.thumbnail;
+          formats = ytdlpData.formats;
+        } catch (e) {
+          console.warn(`[Analyze] yt-dlp failed: ${e.message}, trying static HTML fallback...`);
+        }
+      }
+
+      if (!ytdlpData) {
         // First try fast static extraction
         let extractResult = await extractFromHtml(url);
         
