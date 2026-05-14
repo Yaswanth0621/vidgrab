@@ -41,6 +41,8 @@ async function extractWithYtdlp(url) {
           noPlaylist: true,
           flatPlaylist: true,
           noCheckCertificate: true,
+          noCheckFormats: true,
+          format: '*',
           quiet: true,
           addHeader: [
             'referer:https://www.youtube.com/',
