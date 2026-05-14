@@ -5,6 +5,8 @@ const { extractWithPuppeteer } = require("../modules/puppeteerExtractor");
 const { parseHls } = require("../modules/hlsParser");
 const { parseDash } = require("../modules/dashParser");
 const { extractYoutubeInfo } = require("../modules/youtubeExtractor");
+const { extractFacebookInfo } = require("../modules/facebookExtractor");
+const { extractWithYtdlp } = require("../modules/ytdlpExtractor");
 
 const router = express.Router();
 
@@ -48,51 +50,69 @@ router.post("/", async (req, res, next) => {
         formats = [{ id: "direct_1", type: source.type, quality: "Auto", url: source.url }];
       }
     } 
-    // 3. HTML Page Scrape
-    else {
-      // First try fast static extraction
-      let extractResult = await extractFromHtml(url);
-      
-      // If no videos found, fallback to Puppeteer (if available/configured)
-      if (extractResult.videos.length === 0) {
-         console.log(`[Analyze] No static videos found, trying Puppeteer...`);
-         try {
-           extractResult = await extractWithPuppeteer(url);
-         } catch (e) {
-           console.warn(`[Analyze] Puppeteer failed: ${e.message}`);
-         }
-      }
-
-      title = extractResult.title || title;
-      thumbnail = extractResult.thumbnail || thumbnail;
-
-      // Process found URLs
-      for (const [idx, v] of extractResult.videos.entries()) {
-        if (v.type === "hls") {
-          try {
-            const hlsData = await parseHls(v.url, url);
-            const hlsFormats = hlsData.qualities.map(q => ({
-              id: `${v.type}_${idx}_${q.id}`,
-              type: "hls",
-              quality: q.quality,
-              url: q.url,
-              referer: url
-            }));
-            formats.push(...hlsFormats);
-          } catch (e) {
-            console.warn(`[Analyze] Failed to parse HLS ${v.url}: ${e.message}`);
-          }
-        } else {
-          formats.push({
-            id: `${v.type}_${idx}`,
-            type: v.type,
-            quality: "Auto",
-            url: v.url,
-            referer: url
-          });
-        }
-      }
+    // Handle Specific Extractors (Facebook, etc.) that aren't direct URLs but shouldn't use generic HTML fallback
+    else if (source.type === "facebook") {
+      const fbData = await extractFacebookInfo(source.url);
+      title = fbData.title;
+      thumbnail = fbData.thumbnail;
+      formats = fbData.formats;
     }
+    // 3. Universal Fallback via yt-dlp
+    else {
+      console.log(`[Analyze] Attempting universal extraction with yt-dlp...`);
+      try {
+        const ytdlpData = await extractWithYtdlp(url);
+        title = ytdlpData.title;
+        thumbnail = ytdlpData.thumbnail;
+        formats = ytdlpData.formats;
+      } catch (e) {
+        console.warn(`[Analyze] yt-dlp failed: ${e.message}, trying static HTML fallback...`);
+        // First try fast static extraction
+        let extractResult = await extractFromHtml(url);
+        
+        // If no videos found, fallback to Puppeteer (if available/configured)
+        if (extractResult && extractResult.videos && extractResult.videos.length === 0) {
+           console.log(`[Analyze] No static videos found, trying Puppeteer...`);
+           try {
+             extractResult = await extractWithPuppeteer(url);
+           } catch (e) {
+             console.warn(`[Analyze] Puppeteer failed: ${e.message}`);
+           }
+        }
+
+        if (extractResult) {
+          title = extractResult.title || title;
+          thumbnail = extractResult.thumbnail || thumbnail;
+
+          // Process found URLs
+          for (const [idx, v] of (extractResult.videos || []).entries()) {
+            if (v.type === "hls") {
+              try {
+                const hlsData = await parseHls(v.url, url);
+                const hlsFormats = hlsData.qualities.map(q => ({
+                  id: `${v.type}_${idx}_${q.id}`,
+                  type: "hls",
+                  quality: q.quality,
+                  url: q.url,
+                  referer: url
+                }));
+                formats.push(...hlsFormats);
+              } catch (e) {
+                console.warn(`[Analyze] Failed to parse HLS ${v.url}: ${e.message}`);
+              }
+            } else {
+              formats.push({
+                id: `${v.type}_${idx}`,
+                type: v.type,
+                quality: "Auto",
+                url: v.url,
+                referer: url
+              });
+            }
+          }
+        }
+      } // end catch
+    } // end else
 
     if (formats.length === 0) {
       return res.status(404).json({ error: "No video formats found at this URL." });

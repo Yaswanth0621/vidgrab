@@ -35,6 +35,38 @@ async function analyzeUrl(url) {
       return { type: "youtube", url, isDirect: true };
     }
 
+    // Check if Facebook
+    if (url.includes("facebook.com") || url.includes("fb.watch")) {
+      return { type: "facebook", url, isDirect: false };
+    }
+
+    // Sites best handled by yt-dlp (anti-bot, JS-heavy, or natively supported)
+    const YTDLP_SITES = [
+      "twitter.com", "x.com",
+      "tiktok.com",
+      "instagram.com",
+      "reddit.com", "v.redd.it",
+      "vimeo.com",
+      "dailymotion.com",
+      "twitch.tv",
+      "bilibili.com",
+      "nicovideo.jp",
+      "soundcloud.com",
+      "bandcamp.com",
+      "rumble.com",
+      "odysee.com",
+      "bitchute.com",
+      "loom.com",
+      "streamable.com",
+      "gfycat.com",
+      "imgur.com",
+      "medal.tv",
+      "clippituser.tv",
+    ];
+    if (YTDLP_SITES.some(site => url.includes(site))) {
+      return { type: "html", url, isDirect: false }; // Will fall to yt-dlp in analyze route
+    }
+
     // Check if URL has a known media extension
     if (MEDIA_EXTENSIONS[ext]) {
       return {
