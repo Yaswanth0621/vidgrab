@@ -102,9 +102,13 @@ async function proxyDirectStream(url, res, filename, referer) {
   const totalSize = response.headers["content-length"];
   const contentType = response.headers["content-type"] || "application/octet-stream";
   
+  // Sanitize filename for Content-Disposition (remove non-ASCII or use encodeURIComponent)
+  const safeFilename = filename.replace(/[^\x00-\x7F]/g, "_");
+  const encodedFilename = encodeURIComponent(filename);
+
   const headers = {
     "Content-Type": contentType,
-    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Disposition": `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodedFilename}`,
     "Accept-Ranges": "bytes",
     "Cache-Control": "no-cache",
   };
