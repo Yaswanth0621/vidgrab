@@ -42,7 +42,10 @@ async function extractWithYtdlp(url) {
     if (useCookies) console.log(`[yt-dlp] Using cookies from: ${cookiesPath}`);
 
     const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
-    const ytClients = isYouTube ? [null, 'tvhtml5', 'android', 'mweb', 'web', 'ios'] : [null];
+    const domain = new URL(url).hostname;
+    
+    // Prioritize TV and Android clients which are more resistant to "Sign in" blocks
+    const ytClients = isYouTube ? ['tvhtml5', 'android', 'mweb', 'web', 'ios'] : [null];
     let lastError = null;
 
     for (const client of ytClients) {
@@ -57,29 +60,30 @@ async function extractWithYtdlp(url) {
           '--no-check-formats',
           '--quiet',
           '--impersonate', 'chrome',
-          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          '--add-header', 'referer:https://www.google.com/',
+          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          '--add-header', `referer:https://${domain}/`,
+          '--add-header', `origin:https://${domain}`,
           '--add-header', 'accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
           '--add-header', 'accept-language:en-US,en;q=0.9',
-          '--add-header', 'sec-ch-ua: "Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-          '--add-header', 'sec-ch-ua-mobile: ?0',
-          '--add-header', 'sec-ch-ua-platform: "Windows"'
+          '--add-header', 'sec-ch-ua:"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+          '--add-header', 'sec-ch-ua-mobile:?0',
+          '--add-header', `sec-ch-ua-platform:"Windows"`,
+          '--add-header', 'sec-fetch-dest:document',
+          '--add-header', 'sec-fetch-mode:navigate',
+          '--add-header', 'sec-fetch-site:none',
+          '--add-header', 'sec-fetch-user:?1',
+          '--add-header', 'upgrade-insecure-requests:1'
         ];
 
         if (useCookies) {
           args.push('--cookies', cookiesPath);
           args.push('--no-cache-dir');
-          if (isYouTube) args.push('--sleep-requests', '0.5');
+          if (isYouTube) args.push('--sleep-requests', '1'); // More conservative sleep
         }
 
         if (isYouTube) {
-          if (client) {
-            args.push('--extractor-args', `youtube:player_client=${client}`);
-            console.log(`[yt-dlp] Trying YouTube client: ${client}`);
-          } else {
-            args.push('--extractor-args', 'youtube:player_client=mweb,android,web,tvhtml5');
-            console.log(`[yt-dlp] Trying YouTube multi-client combo...`);
-          }
+          args.push('--extractor-args', `youtube:player_client=${client}`);
+          console.log(`[yt-dlp] Trying YouTube client: ${client}`);
         } else {
           console.log(`[yt-dlp] Universal extraction attempt for: ${url}`);
         }
@@ -96,6 +100,9 @@ async function extractWithYtdlp(url) {
         lastError = err;
         const errMsg = err.message || "";
         console.log(`[yt-dlp] Client ${client || 'default'} failed: ${errMsg.split('\n')[0]}`);
+        
+        // If we only have one client (non-YouTube), don't loop
+        if (!isYouTube) break;
       }
     }
 
